@@ -21,8 +21,8 @@ def send_data_to_metric_server(data: ...) -> None:
    ...
 
 @app.post("/get-prediction/")
-async def ingest(request: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
-    """Ingest a text passage into the RAG system and store it in LakeFS"""
+async def get_prediction(request: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
+    """Returns back a prediction"""
     
     # send data as a background task to metric server 
     background_tasks.add_task(send_data_to_metric_server, ...)
