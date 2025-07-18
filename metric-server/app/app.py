@@ -38,6 +38,11 @@ FEATURE_DRIFT_EVENTS = Counter(
     labelnames=["feature"]
 )
 
+DRIFTED_WINDOWS_LAST_TIMESTAMP = Gauge(
+    "drifted_windows_last_timestamp",
+    "Unix timestamp when the last drifted window was detected"
+)
+
 class FeaturePayload(BaseModel):
     columns: list[str]
     data: list[list[float]]
@@ -80,8 +85,7 @@ class KSTestDriftDetector:
 
             _, p_value = ks_2samp(ref_vals, curr_vals)
             feature_pvalues[col] = p_value
-
-            # Prometheus: Record p-value and drift flag
+            
             FEATURE_PVALUE.labels(feature=col).set(p_value)
             drift_flag = 1 if p_value < self.p_threshold else 0
             FEATURE_DRIFTED.labels(feature=col).set(drift_flag)
@@ -97,6 +101,7 @@ class KSTestDriftDetector:
         DRIFT_SHARE.set(drift_share)
         if drift_share > 0:
             DRIFTED_WINDOWS.inc()
+            DRIFTED_WINDOWS_LAST_TIMESTAMP.set(time.time())
 
         return True, drift_share, feature_pvalues
 
