@@ -76,8 +76,9 @@
                     "refId": "A"
                 }
             ],
-            "title": "Drift Share (Current)",
-            "type": "stat"
+            "title": "Proportion of Features Drifting",
+            "type": "stat",
+            "description": "Proportion of features showing statistical drift in the most recent window."
         },
         {
             "fieldConfig": {
@@ -136,7 +137,8 @@
                 }
             ],
             "title": "Drift Check Latency (p95)",
-            "type": "stat"
+            "type": "stat",
+            "description": "95th percentile latency (in ms) for running a drift detection check."
         },
         {
             "fieldConfig": {
@@ -300,8 +302,9 @@
                     "refId": "A"
                 }
             ],
-            "title": "Drift Magnitude (Selected Feature)",
-            "type": "stat"
+            "title": "Drift Magnitude: \"$feature\"",
+            "type": "stat",
+            "description": "Mean absolute difference between the current and reference distributions of the selected feature."
         },
         {
             "fieldConfig": {
@@ -353,8 +356,9 @@
                     "refId": "A"
                 }
             ],
-            "title": "Drift Detected (Selected Feature)",
-            "type": "stat"
+            "title": "Drift Detected: \"$feature\"",
+            "type": "stat",
+            "description": "Boolean indicator (1 or 0) showing whether the selected feature is currently drifting."
         },
         {
             "fieldConfig": {
@@ -453,8 +457,9 @@
                     "refId": "A"
                 }
             ],
-            "title": "Drift Over Time (Selected Feature)",
-            "type": "timeseries"
+            "title": "Drift Over Time: \"$feature\"",
+            "type": "timeseries",
+            "description": "Historical time series showing whether the selected feature was detected as drifting at each interval."
         },
         {
             "fieldConfig": {

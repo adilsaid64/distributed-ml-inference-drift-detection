@@ -101,7 +101,7 @@ class KSTestDriftDetector:
         DRIFT_SHARE.set(drift_share)
         if drift_share > 0:
             DRIFTED_WINDOWS.inc()
-            DRIFTED_WINDOWS_LAST_TIMESTAMP.set(time.time())
+            DRIFTED_WINDOWS_LAST_TIMESTAMP.set(time.time() * 1000)
 
         return True, drift_share, feature_pvalues
 
