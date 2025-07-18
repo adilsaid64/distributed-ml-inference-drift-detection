@@ -25,6 +25,19 @@ FEATURE_DRIFTED = Gauge(
     labelnames=["feature"]
 )
 
+FEATURE_MAGNITUDE = Gauge(
+    "feature_drift_magnitude",
+    "Estimated magnitude of feature drift",
+    labelnames=["feature"]
+)
+
+
+FEATURE_DRIFT_EVENTS = Counter(
+    "feature_drift_events_total",
+    "Cumulative count of drift detections per feature",
+    labelnames=["feature"]
+)
+
 class FeaturePayload(BaseModel):
     columns: list[str]
     data: list[list[float]]
@@ -39,7 +52,7 @@ class DataDriftResponse(BaseModel):
     feature_pvalues: dict[str, float] | None = None
 
 class KSTestDriftDetector:
-    def __init__(self, reference_df: pd.DataFrame, window_size: int = 100, p_threshold: float = 0.05):
+    def __init__(self, reference_df: pd.DataFrame, window_size: int, p_threshold: float):
         self.reference_df = reference_df
         self.window_size = window_size
         self.p_threshold = p_threshold
@@ -61,6 +74,10 @@ class KSTestDriftDetector:
         for col in self.reference_df.columns:
             ref_vals = self.reference_df[col].values
             curr_vals = current_df[col].values
+
+            mean_diff = abs(ref_vals.mean() - curr_vals.mean()) 
+            FEATURE_MAGNITUDE.labels(feature=col).set(mean_diff)
+
             _, p_value = ks_2samp(ref_vals, curr_vals)
             feature_pvalues[col] = p_value
 
@@ -71,6 +88,7 @@ class KSTestDriftDetector:
 
             if drift_flag:
                 drifted += 1
+                FEATURE_DRIFT_EVENTS.labels(feature=col).inc()
 
         drift_share = drifted / len(self.reference_df.columns)
         elapsed = time.time() - start
