@@ -3,42 +3,32 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from prometheus_client import generate_latest, Counter, Gauge, Histogram
 from sklearn.datasets import load_breast_cancer
-from evidently.report import Report
-from evidently.metrics import DataDriftPreset
 from contextlib import asynccontextmanager
 from typing import Literal
+from scipy.stats import ks_2samp
 import pandas as pd
-import numpy as np
 import time
 from collections import deque
 
-# --- Prometheus Metrics ---
 DRIFTED_WINDOWS = Counter("drifted_windows_total", "Number of windows where dataset drift was detected")
-DRIFT_SHARE = Gauge("drift_share", "Drift share for the most recent window")
+DRIFT_SHARE = Gauge("drift_share", "Share of features with drift in the last window")
 DRIFT_LATENCY = Histogram("drift_check_latency_seconds", "Latency for drift check")
+FEATURE_PVALUE = Gauge(
+    "feature_drift_pvalue",
+    "P-value from KS test per feature",
+    labelnames=["feature"]
+)
 
-FEATURE_DRIFT_DETECTED = Gauge(
+FEATURE_DRIFTED = Gauge(
     "feature_drift_detected",
     "Whether drift was detected for a feature (1=yes, 0=no)",
-    labelnames=["feature"]
-)
-
-FEATURE_DRIFT_SCORE = Gauge(
-    "feature_drift_score",
-    "Drift score for a feature (e.g., JS distance or similar)",
-    labelnames=["feature"]
-)
-
-FEATURE_DRIFT_PVALUE = Gauge(
-    "feature_drift_pvalue",
-    "P-value for a feature drift test",
     labelnames=["feature"]
 )
 
 class FeaturePayload(BaseModel):
     columns: list[str]
     data: list[list[float]]
-    
+
 class DataDriftRequest(BaseModel):
     features: FeaturePayload
 
@@ -46,74 +36,80 @@ class DataDriftResponse(BaseModel):
     status: Literal["accumulating", "drift_checked"]
     drift_share: float
     samples_in_window: int
+    feature_pvalues: dict[str, float] | None = None
 
-# --- Drift Monitor ---
-class DriftMonitor:
-    def __init__(self, reference_df: pd.DataFrame, window_size: int = 100):
+class KSTestDriftDetector:
+    def __init__(self, reference_df: pd.DataFrame, window_size: int = 100, p_threshold: float = 0.05):
         self.reference_df = reference_df
         self.window_size = window_size
+        self.p_threshold = p_threshold
         self.buffer: deque[pd.DataFrame] = deque(maxlen=window_size)
 
-    def add_sample(self, row_df: pd.DataFrame) -> tuple[bool, float]:
+    def add_sample(self, row_df: pd.DataFrame) -> tuple[bool, float, dict[str, float]]:
         self.buffer.append(row_df)
 
         if len(self.buffer) < self.window_size:
-            return False, 0.0
+            return False, 0.0, {}
 
         current_df = pd.concat(self.buffer, ignore_index=True)
 
         start = time.time()
-        report = Report(metrics=[DataDriftPreset()])
-        report.run(reference_data=self.reference_df, current_data=current_df)
+
+        drifted = 0
+        feature_pvalues: dict[str, float] = {}
+
+        for col in self.reference_df.columns:
+            ref_vals = self.reference_df[col].values
+            curr_vals = current_df[col].values
+            _, p_value = ks_2samp(ref_vals, curr_vals)
+            feature_pvalues[col] = p_value
+
+            # Prometheus: Record p-value and drift flag
+            FEATURE_PVALUE.labels(feature=col).set(p_value)
+            drift_flag = 1 if p_value < self.p_threshold else 0
+            FEATURE_DRIFTED.labels(feature=col).set(drift_flag)
+
+            if drift_flag:
+                drifted += 1
+
+        drift_share = drifted / len(self.reference_df.columns)
         elapsed = time.time() - start
+
         DRIFT_LATENCY.observe(elapsed)
-
-        result = report.as_dict()
-        dataset_drift = result["metrics"][0]["result"]["dataset_drift"]
-        drift_share = result["metrics"][0]["result"]["drift_share"]
-        feature_results = result["metrics"][0]["result"]["drift_by_columns"]
-
         DRIFT_SHARE.set(drift_share)
-        if dataset_drift:
+        if drift_share > 0:
             DRIFTED_WINDOWS.inc()
 
-        for feature, data in feature_results.items():
-            FEATURE_DRIFT_DETECTED.labels(feature=feature).set(float(data["drift_detected"]))
-            FEATURE_DRIFT_SCORE.labels(feature=feature).set(data.get("drift_score", 0.0))
-            FEATURE_DRIFT_PVALUE.labels(feature=feature).set(data.get("p_value", 1.0))
+        return True, drift_share, feature_pvalues
 
-        return True, drift_share
-
-# --- App Initialization ---
-monitor: DriftMonitor
+monitor: KSTestDriftDetector | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global monitor
     dataset = load_breast_cancer()
     reference_df = pd.DataFrame(dataset.data, columns=dataset.feature_names)
-    monitor = DriftMonitor(reference_df=reference_df, window_size=100)
+    monitor = KSTestDriftDetector(reference_df=reference_df, window_size=10, p_threshold=0.05)
     yield
 
 app = FastAPI(
-    title="Drift Monitoring Server",
-    description="Monitors Feature Drift with Evidently",
+    title="KS-Test Drift Monitor",
+    description="Performs simple dataset drift detection using KS test per feature",
     lifespan=lifespan
 )
 
 @app.post("/datadrift", response_model=DataDriftResponse)
 async def datadrift(payload: DataDriftRequest) -> DataDriftResponse:
-
     feature_dict = payload.features
     X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
-    ready, drift_share = monitor.add_sample(X)
+    ready, drift_share, pvalues = monitor.add_sample(X)
 
     return DataDriftResponse(
         status="drift_checked" if ready else "accumulating",
         drift_share=drift_share,
-        samples_in_window=len(monitor.buffer)
+        samples_in_window=len(monitor.buffer),
+        feature_pvalues=pvalues if ready else None
     )
-
 @app.get("/metrics")
 def metrics() -> Response:
     return Response(generate_latest(), media_type="text/plain")

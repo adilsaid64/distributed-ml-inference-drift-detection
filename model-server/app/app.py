@@ -16,7 +16,7 @@ logger = logging.getLogger("uvicorn")
 REQUEST_COUNT: Counter = Counter("prediction_requests_total", "Total number of prediction requests")
 PREDICT_LATENCY: Histogram = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
 
-METRIC_SERVER_URL: str = "http://metric-server/datadrift"
+METRIC_SERVER_URL: str = "http://metric-server:8000/datadrift"
 
 MODEL: RandomForestClassifier | None = None
 
