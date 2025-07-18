@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Model Server", description="Breast Cancer Prediction API", lifespan=lifespan)
 
-async def send_to_metric_monitoring(payload: dict[str, list[float] | list[str]]) -> None:
+async def send_to_metric_monitoring(payload: dict[str, dict[str, list[float] | list[str]]]) -> None:
     """Send features to external metric monitoring service"""
     
     try:
@@ -56,16 +56,14 @@ async def send_to_metric_monitoring(payload: dict[str, list[float] | list[str]])
         pass
 
 @app.post("/get-prediction")
-async def get_prediction(request: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
+async def get_prediction(payload: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
     """Return prediction for input features"""
     REQUEST_COUNT.inc()
 
-    feature_dict = request.features
+    feature_dict = payload.features
     X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
 
-    logger.info(X.shape)
-
-    background_tasks.add_task(send_to_metric_monitoring, {"features": request.features, "feature_names": X.columns})
+    background_tasks.add_task(send_to_metric_monitoring, {"features":  {"columns": X.columns.tolist(), "data": X.values.tolist()}})
     
     prediction = MODEL.predict(X)        
 

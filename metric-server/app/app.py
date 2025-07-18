@@ -35,10 +35,12 @@ FEATURE_DRIFT_PVALUE = Gauge(
     labelnames=["feature"]
 )
 
-# --- Pydantic Schemas ---
+class FeaturePayload(BaseModel):
+    columns: list[str]
+    data: list[list[float]]
+    
 class DataDriftRequest(BaseModel):
-    features: list[float]
-    feature_names: list[str]
+    features: FeaturePayload
 
 class DataDriftResponse(BaseModel):
     status: Literal["accumulating", "drift_checked"]
@@ -101,11 +103,10 @@ app = FastAPI(
 
 @app.post("/datadrift", response_model=DataDriftResponse)
 async def datadrift(payload: DataDriftRequest) -> DataDriftResponse:
-    if len(payload.features) != len(payload.feature_names):
-        raise ValueError("Feature count and feature_names must match.")
 
-    row_df = pd.DataFrame([payload.features], columns=payload.feature_names)
-    ready, drift_share = monitor.add_sample(row_df)
+    feature_dict = payload.features
+    X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
+    ready, drift_share = monitor.add_sample(X)
 
     return DataDriftResponse(
         status="drift_checked" if ready else "accumulating",
