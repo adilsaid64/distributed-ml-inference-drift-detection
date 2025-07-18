@@ -39,10 +39,10 @@ docker compose up --build
 To simulate a live data stream:
 - Without Drift (Normal Scenario):
 ```bash
-uv run --drift false
+uv run run.py --drift false
 ```
 
 - With Drift (Simulated Drift Scenario):
 ```bash
-uv run --drift true
+uv run run.py --drift true
 ```
