@@ -16,6 +16,8 @@ Exploring what a real-time data drift monitoring solution could look like within
    - Last drift timestamp
    - Historical drift trends
 
+![system-diagram](assets/system-diagram.png)
+
 
 ## Running the Project
 
@@ -46,3 +48,16 @@ uv run run.py --drift false
 ```bash
 uv run run.py --drift true
 ```
+
+
+## Dashboards
+
+Access the grafana dashboard from : http://localhost:4000/
+
+### No Drift Scenario
+
+![No Drift Scenario](assets/no-drift.png)
+
+### Drift Scenario
+
+![Drift Scenario](assets/drift.png)
