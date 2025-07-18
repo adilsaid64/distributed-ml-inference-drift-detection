@@ -6,24 +6,20 @@ import time
 MODEL_SERVER_URL = "http://localhost:8001/get-prediction"
 REQUEST_INTERVAL = 1.0
 
-iris = load_breast_cancer()
-data = pd.DataFrame(iris.data, columns=iris.feature_names)
+X, y = load_breast_cancer(as_frame=True, return_X_y=True)
 
 def stream_predictions():
     """Continuously send prediction requests to the model server"""
     request_count = 1
     while True:
-        sample = data.sample(1)
-        features = sample.values.tolist()
-        feature_names = sample.columns.tolist()
-
-        print(features)
+        sample = X.sample(1)
 
         payload = {
-            "features": features,
-            "feature_names": feature_names
+            "features": {
+                "columns": sample.columns.tolist(),
+                "data": sample.values.tolist()
+            }
         }
-        print(payload)
         try:
             response = requests.post(MODEL_SERVER_URL, json=payload)
             if response.ok:

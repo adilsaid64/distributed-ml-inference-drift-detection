@@ -9,6 +9,8 @@ import numpy as np
 import httpx
 import logging
 import pandas as pd
+from typing import Any
+
 logger = logging.getLogger("uvicorn")
 
 REQUEST_COUNT: Counter = Counter("prediction_requests_total", "Total number of prediction requests")
@@ -16,13 +18,16 @@ PREDICT_LATENCY: Histogram = Histogram("prediction_latency_seconds", "Prediction
 
 METRIC_SERVER_URL: str = "http://metric-server/datadrift"
 
-model: RandomForestClassifier | None = None
+MODEL: RandomForestClassifier | None = None
 
+class FeaturePayload(BaseModel):
+    columns: list[str]
+    data: list[list[float]]
 
 class GetPredictionRequest(BaseModel):
     """Get Prediction Payload"""
-    features: list[list[float]] = Field(description="List of 30 numeric feature values")
-    feature_names: list[str] = Field(description="List of 30 feature names")
+    features: FeaturePayload
+
 
 class GetPredictionResponse(BaseModel):
     """Get Prediction Response"""
@@ -31,10 +36,11 @@ class GetPredictionResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle handler"""
-    global model
+    global MODEL
     logger.info("Loading Data and Training Model")
     X, y = load_breast_cancer(as_frame=True, return_X_y=True)
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    MODEL = RandomForestClassifier(n_estimators=100, random_state=42)
+    MODEL.fit(X, y)
     logger.info("Model Trianed and Set")
     yield
 
@@ -49,17 +55,19 @@ async def send_to_metric_monitoring(payload: dict[str, list[float] | list[str]])
     except httpx.RequestError:
         pass
 
-@app.post("/get-prediction", response_model=GetPredictionResponse)
-@PREDICT_LATENCY.time()
+@app.post("/get-prediction")
 async def get_prediction(request: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
     """Return prediction for input features"""
     REQUEST_COUNT.inc()
 
-    background_tasks.add_task(send_to_metric_monitoring, {"features": request.features, "feature_names": request.feature_names})
-    
-    X: pd.DataFrame = pd.DataFrame(request.features, columns=request.feature_names)
+    feature_dict = request.features
+    X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
 
-    prediction = model.predict(X)
+    logger.info(X.shape)
+
+    background_tasks.add_task(send_to_metric_monitoring, {"features": request.features, "feature_names": X.columns})
+    
+    prediction = MODEL.predict(X)        
 
     return GetPredictionResponse(prediction=prediction.tolist())
 
