@@ -1,20 +1,13 @@
 from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import Response
-from pydantic import BaseModel, Field
-from prometheus_client import Counter, Histogram, generate_latest
+from pydantic import BaseModel
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import RandomForestClassifier
 from contextlib import asynccontextmanager
-import numpy as np
 import httpx
 import logging
 import pandas as pd
-from typing import Any
 
 logger = logging.getLogger("uvicorn")
-
-REQUEST_COUNT: Counter = Counter("prediction_requests_total", "Total number of prediction requests")
-PREDICT_LATENCY: Histogram = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
 
 METRIC_SERVER_URL: str = "http://metric-server:8000/datadrift"
 
@@ -58,18 +51,12 @@ async def send_to_metric_monitoring(payload: dict[str, dict[str, list[float] | l
 @app.post("/get-prediction")
 async def get_prediction(payload: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
     """Return prediction for input features"""
-    REQUEST_COUNT.inc()
 
     feature_dict = payload.features
     X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
 
     background_tasks.add_task(send_to_metric_monitoring, {"features":  {"columns": X.columns.tolist(), "data": X.values.tolist()}})
     
-    prediction = MODEL.predict(X)        
+    prediction = MODEL.predict(X)
 
     return GetPredictionResponse(prediction=prediction.tolist())
-
-@app.get("/metrics")
-def metrics() -> Response:
-    """Expose Prometheus metrics"""
-    return Response(generate_latest(), media_type="text/plain")
