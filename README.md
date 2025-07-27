@@ -27,6 +27,7 @@ Use [`uv`](https://github.com/astral-sh/uv) to manage the Python environment:
 
 ```bash
 uv venv
+source .venv/bin/activate
 uv sync
 ```
 
@@ -75,7 +76,9 @@ Access the grafana dashboard from : http://localhost:4000/
 
 ## Load Testing With Locust
 
-To run Load Testing with Locust, follow these steps:
+To run Load Testing with [Locust](https://docs.locust.io/en/stable/quickstart.html) follow these steps:
+
+Run from root:
 
 ```bash
 locust
