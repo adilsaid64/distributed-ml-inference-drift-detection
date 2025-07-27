@@ -37,6 +37,17 @@ Use Docker Compose to spin up  the Model Server, Metric Server, Prometheus and G
 docker compose up --build
 ```
 
+To scale the Model Server to handle more requests, you can use:
+```bash
+docker-compose up --build --scale model-server=10
+```
+
+This will start 10 instances of the model server, allowing it to handle more concurrent requests.
+
+Requests to the prediction API is sent to the API Gateway (NGINX), which load balances across the model server replicas.
+
+See [nginx.conf](nginx/nginx.conf).
+
 ### 3. Run the Drift Monitor
 To simulate a live data stream:
 - Without Drift (Normal Scenario):
@@ -49,7 +60,6 @@ uv run run.py --drift false
 uv run run.py --drift true
 ```
 
-
 ## Dashboards
 
 Access the grafana dashboard from : http://localhost:4000/
@@ -61,3 +71,16 @@ Access the grafana dashboard from : http://localhost:4000/
 ### Drift Scenario
 
 ![Drift Scenario](assets/drift.png)
+
+
+## Load Testing With Locust
+
+To run Load Testing with Locust, follow these steps:
+
+```bash
+locust
+```
+
+Then open your browser and navigate to `http://localhost:8089` to access the Locust web interface. From there, you can start your load tests by specifying the target URL and the number of users to simulate.
+
+The target URL is: `http://localhost:8002/get-prediction`
