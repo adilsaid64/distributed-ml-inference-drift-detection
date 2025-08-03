@@ -87,3 +87,6 @@ locust
 Then open your browser and navigate to `http://localhost:8089` to access the Locust web interface. From there, you can start your load tests by specifying the target URL and the number of users to simulate.
 
 The target URL is: `http://localhost:8002/get-prediction`
+
+
+currently working on scaling up the metrics up endpoint
