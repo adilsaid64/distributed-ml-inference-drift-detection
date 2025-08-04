@@ -89,4 +89,4 @@ Then open your browser and navigate to `http://localhost:8089` to access the Loc
 The target URL is: `http://localhost:8002/get-prediction`
 
 
-currently working on scaling up the metrics up endpoint
+currently working on scaling up the metrics up endpoit. model endpoint is simpler because it's stateless but metric server is stateful, so I'm currently considering different ways it can be scaled.
