@@ -2,8 +2,6 @@ version: '3.8'
 services:
   metric-server:
     build: ./metric-server
-    # ports:
-    #   - "8000:8000"
     expose:
       - "9000"
     env_file:
