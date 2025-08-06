@@ -40,10 +40,10 @@ docker compose up --build
 
 To scale the Model Server to handle more requests, you can use:
 ```bash
-docker-compose up --build --scale model-server=10
+docker-compose up --build --scale model-server=10 --scale metric-server=10
 ```
 
-This will start 10 instances of the model server, allowing it to handle more concurrent requests.
+This will start 10 instances of the model server and 10 instances of the metric server, allowing them to handle more concurrent requests.
 
 Requests to the prediction API is sent to the API Gateway (NGINX), which load balances across the model server replicas.
 
