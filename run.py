@@ -5,7 +5,7 @@ import pandas as pd
 import time
 import click
 
-MODEL_SERVER_URL = "http://localhost:8002/get-prediction"
+MODEL_SERVER_URL = "http://localhost:8002/model/get-prediction"
 REQUEST_INTERVAL = 1.0
 
 X, y = load_breast_cancer(as_frame=True, return_X_y=True)

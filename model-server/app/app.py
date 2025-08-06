@@ -9,7 +9,7 @@ import pandas as pd
 
 logger = logging.getLogger("uvicorn")
 
-METRIC_SERVER_URL: str = "http://metric-server:8000/datadrift"
+METRIC_SERVER_URL: str = "http://api-gateway:8002/metric/datadrift"
 
 MODEL: RandomForestClassifier | None = None
 
