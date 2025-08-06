@@ -2,8 +2,7 @@ import numpy as np
 from sklearn.datasets import load_breast_cancer
 from locust import HttpUser, task, between
 
-MODEL_SERVER_URL = "http://localhost:8002/get-prediction"
-REQUEST_INTERVAL = 1.0
+MODEL_SERVER_URL = "http://localhost:8002/model/get-prediction"
 
 X, y = load_breast_cancer(as_frame=True, return_X_y=True)
 
