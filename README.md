@@ -16,7 +16,7 @@ Exploring what a real-time data drift monitoring solution could look like within
    - Last drift timestamp
    - Historical drift trends
 
-![system-diagram](assets/system-diagram-v3.png)
+![system-diagram](assets/system-diagramv2.png)
 
 
 ## Running the Project
