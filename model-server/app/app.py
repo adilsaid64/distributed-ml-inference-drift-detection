@@ -1,3 +1,4 @@
+import time
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from sklearn.datasets import load_breast_cancer
@@ -5,7 +6,15 @@ from sklearn.ensemble import RandomForestClassifier
 from contextlib import asynccontextmanager
 import httpx
 import logging
+from fastapi.responses import Response
 import pandas as pd
+from prometheus_client import generate_latest, Counter, Histogram
+
+
+PREDICTION_REQUESTS = Counter("prediction_requests_total", "Total number of prediction requests")
+PREDICTION_ERRORS = Counter("prediction_errors_total", "Total number of failed prediction requests")
+PREDICTION_LATENCY = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
+
 
 logger = logging.getLogger("uvicorn")
 
@@ -51,12 +60,25 @@ async def send_to_metric_monitoring(payload: dict[str, dict[str, list[float] | l
 @app.post("/get-prediction")
 async def get_prediction(payload: GetPredictionRequest, background_tasks: BackgroundTasks) -> GetPredictionResponse:
     """Return prediction for input features"""
+    start_time = time.time()
+    PREDICTION_REQUESTS.inc()
 
-    feature_dict = payload.features
-    X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
-
-    background_tasks.add_task(send_to_metric_monitoring, {"features":  {"columns": X.columns.tolist(), "data": X.values.tolist()}})
+    try:
+        feature_dict = payload.features
+        X = pd.DataFrame(data=feature_dict.data, columns=feature_dict.columns)
+        background_tasks.add_task(send_to_metric_monitoring, {"features":  {"columns": X.columns.tolist(), "data": X.values.tolist()}})
+        prediction = MODEL.predict(X)
+        return GetPredictionResponse(prediction=prediction.tolist())
     
-    prediction = MODEL.predict(X)
+    except Exception as e:
+        PREDICTION_ERRORS.inc()
+        raise e
 
-    return GetPredictionResponse(prediction=prediction.tolist())
+    finally:
+        latency = time.time() - start_time
+        PREDICTION_LATENCY.observe(latency)
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type="text/plain")
