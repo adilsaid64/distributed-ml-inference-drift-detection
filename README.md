@@ -3,18 +3,23 @@
 Exploring what a real-time data drift monitoring solution could look like within MLOps.
 
 ## How It Works
-
-1. A baseline dataset (reference) is loaded at startup.
-2. Incoming feature data is buffered in a rolling window.
-3. Once the buffer is full:
+1. Clients send requests to the Model Server for predictions.
+2. Requests hit a load balancer (NGINX) which routes them to one of the Model Server replicas.
+3. The Model Server processes the request and returns a prediction.
+4. The Model Server also sends the feature data to the Metric Server for drift monitoring. This is done via a background task that runs asynchronously. This requests goes thru a load balancer and is routed to one of the Metric Server replicas.
+5. The Metric Server loads a reference dataset at startup, which is used to compare incoming feature data against.
+6. Incoming feature data is buffered in a rolling window.
+7. Once the buffer is full:
    - A KS test is run per feature.
    - P-values and drift flags are recorded.
    - Metrics are exposed to Prometheus.
-4. Grafana visualizes:
+8. Grafana visualizes:
    - Number of features drifting
    - Feature-level p-values & drift flags
    - Last drift timestamp
    - Historical drift trends
+
+Model Servers are stateless and can be scaled horizontally. Metric Servers are stateful. In this design, each metric server instance maintains its own buffer (state). That way it calculates drifts based on the data it receives.  Prometheus scrapes outputs of all metric servers and aggregates the data for a global view of drift across all features.
 
 ![system-diagram](assets/system-diagramv2.png)
 
