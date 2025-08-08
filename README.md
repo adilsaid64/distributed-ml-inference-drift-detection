@@ -1,6 +1,8 @@
-# Real-Time Data Drift Monitoring
+# Distributed ML Inference and Data Drift Monitoring
 
-Exploring what a real-time data drift monitoring solution could look like within MLOps.
+Exploring what a real-time ml inference and data drift monitoring solution could look like within MLOps.
+
+Goal is to have something that can scale to 200rps.
 
 ## How It Works
 1. Clients send requests to the Model Server for predictions.
