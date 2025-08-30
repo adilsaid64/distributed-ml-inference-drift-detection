@@ -18,7 +18,7 @@ PREDICTION_LATENCY = Histogram("prediction_latency_seconds", "Prediction latency
 
 logger = logging.getLogger("uvicorn")
 
-METRIC_SERVER_URL: str = "http://api-gateway/metric/datadrift"
+METRIC_SERVER_URL: str = "http://load-balancer/metric/datadrift"
 
 MODEL: RandomForestClassifier | None = None
 
